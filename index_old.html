@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <script src="https://use.fontawesome.com/baff6f55f5.js"></script>
+  <script src="https://use.fontawesome.com/baff6f55f5.js"></script>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>Hengyu Fu</title>
@@ -77,19 +77,6 @@
         flex-wrap: wrap;
         justify-content: space-between;
       }
-
-      /* New CSS for image switching */
-      #current-image {
-        max-width: 100%;
-        height: auto;
-        cursor: pointer;
-        border: 2px solid #ccc;
-        border-radius: 10px;
-        transition: transform 0.2s;
-      }
-      #current-image:hover {
-        transform: scale(1.05);
-      }
     </style>
   </head>
   <body>
@@ -97,11 +84,11 @@
       <header>
         <h1>Hengyu Fu</h1>
         <p>Undergraduate student<br>Peking University</p>
-        <h3><a href="https://hengyuf.github.io/">Home</a></h3>
-        <h3><a href="https://hengyuf.github.io/research/CV_hyf.pdf">CV</a></h3>  
-        <h3><a href="https://hengyuf.github.io/publications.html">Publications</a></h3> 
+    <h3><a href="https://hengyuf.github.io/">Home</a></h3>
+    <h3><a href="https://hengyuf.github.io/research/CV_hyf.pdf">CV</a></h3>  
+    <h3><a href="https://hengyuf.github.io/publications.html">Publications</a></h3> 
 
-        <b>Social</b><br>
+    <b>Social</b><br>
         <div class="social-row">
           <a href="https://scholar.google.com/citations?user=lxU-4GIAAAAJ" target="_blank"><i class="ai ai-fw ai-google-scholar-square"></i> Scholar</a><br>
           <a href="http://github.com/hengyuf"><i class="fa fa-fw fa-github-square"></i> GitHub</a><br>
@@ -109,35 +96,15 @@
         </div>
         <br>
 
-        <p><b>Contact:</b><br>fhy2021@stu.pku.edu.cn</p>
-        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+    <p><b>Contact:</b><br>fhy2021@stu.pku.edu.cn</p>
+    <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
       </header>
       <section>
-        <!-- Updated image section -->
-        <img id="current-image" src="imgs/1.jpg" height="250" width="250" alt="Hengyu Fu" onclick="changeImage()">
-        <p>I am currently an undergraduate student of <a href="https://www.math.pku.edu.cn/">Mathematics</a> at <a href="https://www.pku.edu.cn/">Peking University</a> 
-        <p>My research interests include machine learning and operations research.</p>
+      <img src="photo.jpg" height="250" width="250" alt="Hengyu Fu"></h3>
+      <p>I am currently an undergraduate student of <a href="https://www.math.pku.edu.cn/">Mathematics</a> at <a href="https://www.pku.edu.cn/">Peking University</a> 
+      <p>My research interests include machine learning and operations research.</p>
       </section>
     </div>
     <script src="javascripts/scale.fix.js"></script>
-
-    <!-- New JavaScript for image switching -->
-    <script>
-      const images = [
-        "imgs/1.jpg",
-        "imgs/2.jpg",
-        "imgs/3.jpg",
-        "imgs/4.jpg",
-        "imgs/5.jpg",
-        "imgs/6.jpg",
-      ];
-
-      let currentIndex = 0;
-
-      function changeImage() {
-        currentIndex = (currentIndex + 1) % images.length;
-        document.getElementById("current-image").src = images[currentIndex];
-      }
-    </script>
   </body>
 </html>
