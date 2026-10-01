@@ -11,7 +11,8 @@
  *    The first step plays as soon as the slide is entered.
  * Keys: click / → / Space / PageDown = next; ← / PageUp = back; Home / End; F = full screen;
  * H = key hint; S = speaker notes (notes.html in a second window, synced by postMessage; it can
- * also drive the deck). A click while a segment is playing jumps to the end of the current step.
+ * also drive the deck); L = light / dark mode (remembered); A = autoplay (the whole deck, steps at
+ * AUTO_RATE speed with a short hold in between). The two buttons bottom-right do the same. A click while a segment is playing jumps to the end of the current step.
  * URL hash #<slide>/<step> (1-based slide) jumps straight to that state (used for screenshots).
  * index.html?preview is a passive copy (no input, no hint) that the notes window uses to show
  * what the next click will display.
@@ -25,6 +26,10 @@
   const DECK = window.DECK || {};
   const PREVIEW = new URLSearchParams(location.search).has("preview");
   let notesWin = null;                   // the speaker-notes window, once it has said hello
+  const AUTO_RATE = 1.5;                 // autoplay: video speed,
+  const AUTO_HOLD_VIDEO = 700;           // pause after an animation step (ms),
+  const AUTO_HOLD_HTML = 1600;           // pause on each html step (ms)
+  let auto = false, autoTimer = null;
 
   // ------------------------------------------------------------------ layout
   function fit() {                       // a 1920x1080 stage, centred and scaled to the window
@@ -95,13 +100,14 @@
     if (v.dataset.src !== src) { v.src = src; v.dataset.src = src; }
   }
   function playQueue(m) {
-    if (!m.queue.length) { m.playing = false; return; }
+    if (!m.queue.length) { m.playing = false; autoSchedule(); return; }
     const seg = m.queue.shift();
     const v = m.vids[1 - m.front];
     load(v, seg.src);
     v.onended = null;
     const start = () => {
       v.currentTime = 0;
+      v.playbackRate = auto ? AUTO_RATE : 1;
       const p = v.play();
       if (p && p.catch) p.catch(() => {});
     };
@@ -157,7 +163,7 @@
   function next() {
     const m = model[cur];
     if (m.kind === "video") {
-      if (m.playing) { showEnd(m, step); return; }             // finish the running step first
+      if (m.playing) { showEnd(m, step); autoSchedule(); return; }   // finish the running step first
       if (step < m.steps.length - 1) { step++; playStep(m, step); update(); return; }
     } else if (step < m.frags.length) {
       step++; setFrags(m, step); update(); return;
@@ -188,6 +194,28 @@
     progress.style.width = `${(frac * 100).toFixed(2)}%`;
     history.replaceState(null, "", `#${cur + 1}/${step}`);
     sendState();
+    autoSchedule();
+  }
+
+  // ------------------------------------------------------------------ autoplay and theme
+  function autoSchedule() {
+    clearTimeout(autoTimer);
+    if (!auto) return;
+    const m = model[cur];
+    if (m.kind === "video" && m.playing) return;          // the end of the step calls this again
+    if (cur === model.length - 1 && step >= nSteps(m) - 1) { setAuto(false); return; }
+    autoTimer = setTimeout(() => { if (auto) next(); }, m.kind === "video" ? AUTO_HOLD_VIDEO : AUTO_HOLD_HTML);
+  }
+  function setAuto(on) {
+    auto = on;
+    btnAuto.classList.toggle("on", on);
+    for (const o of model) if (o.kind === "video") for (const v of o.vids) v.playbackRate = on ? AUTO_RATE : 1;
+    if (on && cur === model.length - 1 && step >= nSteps(model[cur]) - 1) enter(0, false);   // at the end: restart
+    else autoSchedule();
+  }
+  function setTheme(light) {
+    document.body.classList.toggle("light", light);
+    try { localStorage.setItem("discoloop-theme", light ? "light" : "dark"); } catch (e) { /* private mode */ }
   }
 
   // ------------------------------------------------------------------ speaker notes window
@@ -219,6 +247,26 @@
   }
 
   // ------------------------------------------------------------------ input
+  const controls = document.getElementById("controls");
+  const btnAuto = document.getElementById("btn-auto");
+  const btnTheme = document.getElementById("btn-theme");
+  let hideTimer = null;
+  function showControls(ms) {
+    controls.classList.add("show");
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => controls.classList.remove("show"), ms || 2500);
+  }
+  if (PREVIEW) {
+    controls.style.display = "none";
+    window.addEventListener("storage", (e) => {            // follow the deck's light / dark mode
+      if (e.key === "discoloop-theme") document.body.classList.toggle("light", e.newValue === "light");
+    });
+  } else {
+    btnTheme.addEventListener("click", () => setTheme(!document.body.classList.contains("light")));
+    btnAuto.addEventListener("click", () => setAuto(!auto));
+    document.addEventListener("mousemove", () => showControls());
+  }
+
   window.addEventListener("message", (e) => {
     const d = e.data || {};
     if (PREVIEW) {
@@ -245,12 +293,14 @@
         break;
       case "h": case "H": hint.classList.toggle("show"); break;
       case "s": case "S": openNotes(); break;
+      case "l": case "L": setTheme(!document.body.classList.contains("light")); break;
+      case "a": case "A": setAuto(!auto); break;
       default: break;
     }
   });
   if (!PREVIEW) {
-    document.addEventListener("click", (e) => { if (e.button === 0) next(); });
-    document.addEventListener("contextmenu", (e) => { e.preventDefault(); prev(); });
+    document.addEventListener("click", (e) => { if (e.button === 0 && !e.target.closest("#controls")) next(); });
+    document.addEventListener("contextmenu", (e) => { e.preventDefault(); if (!e.target.closest("#controls")) prev(); });
   }
 
   // read-only state for automated checks (tests/puppeteer)
@@ -266,6 +316,7 @@
       return out;
     },
     count: () => model.length,
+    auto: () => auto,
   };
 
   window.addEventListener("hashchange", () => {
@@ -276,5 +327,6 @@
   if (!PREVIEW) {
     hint.classList.add("show");
     setTimeout(() => hint.classList.remove("show"), 4000);
+    showControls(4000);
   }
 })();
