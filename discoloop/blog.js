@@ -108,7 +108,7 @@
         const c = caps[ctl.g] || {}, nextC = caps[ctl.g + 1] || {};
         const same = (c.big || "") === (nextC.big || "") && (c.small || "") === (nextC.small || "");
         const words = same ? 0 : `${c.big || ""} ${c.small || ""}`.replace(/<[^>]+>/g, "").split(/\s+/).filter(Boolean).length;
-        const hold = same ? 1200 : Math.max(2500, Math.min(7000, 1800 + 110 * words));
+        const hold = same ? 500 : Math.max(1100, Math.min(3200, 800 + 50 * words));
         ctl.timer = setTimeout(() => { if (ctl.auto && pageOf(ctl) === cur && !ctl.busy()) ctl.setGroup(ctl.g + 1); }, hold);
       },
       setAuto(on) {
