@@ -36,7 +36,7 @@ window.BLOG_TEXT = {
     { g: 1, html: "but nothing forces that order, and training gives OOD facts even less reason to follow it." },
     { g: 2, html: "If the order is reversed, Layer 2’s fact goes unused," },
     { g: 3, html: "because Bob only arrives at Layer 4 and is too late for the second hop." },
-    { g: 4, html: "The fact is stored, but in a layer the pass has already left. This is the <em>depth-local storage</em> problem that prior work described." },
+    { g: 4, html: "The fact is stored, but in a layer the pass has already left. This is the <em>depth-local storage</em> problem that prior work described (<a class=\"cite\" href=\"https://arxiv.org/abs/2406.12775\" target=\"_blank\" rel=\"noopener\">Biran&nbsp;et&nbsp;al.</a>; <a class=\"cite\" href=\"https://arxiv.org/abs/2405.15071\" target=\"_blank\" rel=\"noopener\">Wang&nbsp;et&nbsp;al.</a>)." },
   ],
   "Part3_LoopedTransformer": [
     { g: 0, html: "A looped Transformer folds every layer into one block <i>f</i><sub>θ</sub> that holds both facts." },

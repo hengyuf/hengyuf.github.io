@@ -60,6 +60,7 @@
       s.dataset.g = p.g;
       if (n > 1) s.addEventListener("click", (e) => {     // a sentence jumps to its step
         e.stopPropagation();
+        if (e.target.closest("a")) return;                // a link inside it just opens
         const k = p.g;
         if (k === ctl.g) ctl.replay();
         else ctl.jump(k);

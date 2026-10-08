@@ -30,6 +30,7 @@ html { scroll-behavior: smooth; scroll-padding-top: var(--nav-h); }
 html, body { margin: 0; background: var(--bg); }
 body { color: var(--text); font-family: var(--font); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
 a { color: inherit; }
+.para a.cite { color: var(--blue); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 em { font-style: normal; color: var(--amber); }
 .blue { color: var(--blue); } .purple { color: var(--purple); } .green { color: var(--green); } .mute { color: var(--mute); } .edge { color: var(--edge); }
 sub, sup { line-height: 0; }
