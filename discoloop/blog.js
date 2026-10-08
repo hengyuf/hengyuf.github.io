@@ -6,8 +6,10 @@
  *
  * The page is a stack of one-screen pages (the hero, every block, the footer). A scroll gesture
  * (wheel, trackpad, keys, touch swipe) moves to the next / previous page. A "scrolly" page shows one
- * or more animation scenes split into caption groups: arriving on it plays the first group, a click
- * on the animation (or → / ←, or the progress bar) moves between groups. Going forward plays a group's
+ * or more animation scenes split into groups (steps): arriving on it plays the groups one after another,
+ * a click on the animation (or → / ←, the progress bar, or a sentence of its paragraph) moves between
+ * them. Each page's text is one paragraph above the animation (block.text: parts tagged with the
+ * group they describe); the part of the group on screen is highlighted. Going forward plays a group's
  * clips back to back, going back shows the group's end state; a page that is left stops playing, and
  * pages far away release their videos. The html visuals (astra, jev, results) step the same way.
  */
@@ -16,6 +18,7 @@
   const ORDER = ["intro", "storage", "mechanism", "discoloop", "results"];
   const PARTS = window.BLOG_PARTS || {};
   const SCENES = window.SCENES || {};
+  const TEXT = window.BLOG_TEXT || {};  // each page's paragraph (content/paragraphs.js)
   const main = document.getElementById("blog");
   const pinned = [];                    // pinned blocks: {sec, n, g, onGroup, suspend, prime}
   const chapters = [];
@@ -35,14 +38,37 @@
     .replace(/([A-Za-zα-ω])\u0303/g, '<span class="tl">$1</span>')
     .replace(/\u22c6/g, "*")
     .replace(/<sup>([^<]*)<\/sup><sub>([^<]*)<\/sub>/g, '<span class="ss"><sup>$1</sup><sub>$2</sub></span>')
-    .replace(/<sub>([^<]*)<\/sub><sup>([^<]*)<\/sup>/g, '<span class="ss"><sup>$2</sup><sub>$1</sub></span>');
+    .replace(/<sub>([^<]*)<\/sub><sup>([^<]*)<\/sup>/g, '<span class="ss"><sup>$2</sup><sub>$1</sub></span>')
+    // a symbol stays on one line with its indices (and a closing bracket or punctuation right after)
+    .replace(/(<i>(?:[^<]|<span class="tl">[^<]*<\/span>)*<\/i>)((?:<sup>[^<]*<\/sup>|<sub>[^<]*<\/sub>|<span class="ss"><sup>[^<]*<\/sup><sub>[^<]*<\/sub><\/span>)+)([)\],.;:]*)/g,
+      '<span class="nw">$1$2$3</span>');
   const capHtml = (big, small) => `<p class="big">${nb(big)}</p>${small ? `<p class="small">${nb(small)}</p>` : ""}`;
 
   // ------------------------------------------------------------------ a pinned stage with captions
-  function stage(sec, caps) {         // caps: one {big, small} per group (same text = same caption)
+  function stage(sec, caps, text) {   // caps: one {big, small} per group; text: [{g, html}], the paragraph
     const n = caps.length;
     const st = el("div", "stage");
     const screen = el("div", "screen");
+    const fig = el("div", "fig");       // the animation and its progress bar, sized to the room left
+    // the paragraph: its parts in order, each tagged with the group whose animation it describes
+    // (without one, the big captions joined)
+    const parts = text && text.length ? text
+      : caps.map((c, g) => ({ g, html: c.big || "" })).filter((p, i, a) => p.html && (i === 0 || p.html !== a[i - 1].html));
+    const para = el("p", "para");
+    const partEls = parts.map((p, i) => {
+      const s = el("span", "pt", nb(p.html));
+      s.dataset.g = p.g;
+      if (n > 1) s.addEventListener("click", (e) => {     // a sentence jumps to its step
+        e.stopPropagation();
+        const k = p.g;
+        if (k === ctl.g) ctl.replay();
+        else ctl.jump(k);
+      });
+      if (i) para.append(" ");
+      para.append(s);
+      return s;
+    });
+    if (n > 1) para.classList.add("steps");
     const caption = el("div", "caption");
     const capEls = [];
     let lastKey = null, lastEl = null;
@@ -51,7 +77,8 @@
       if (key !== lastKey) { lastEl = el("div", "cap", capHtml(c.big, c.small)); caption.append(lastEl); lastKey = key; }
       capEls.push(lastEl);
     }
-    st.append(screen);
+    st.append(para, fig);
+    fig.append(screen);
     let bars = [];
     let autoBtn = null;
     if (n > 1) {                        // the progress bar: one segment per group, click to jump there
@@ -66,39 +93,43 @@
       prog.append(autoBtn);
       caps.forEach((c, k) => {
         const b = el("button", "seg", "<i></i>");
-        const tip = (c.big || "").replace(/<[^>]+>/g, "");
+        const tip = parts.filter((pt) => pt.g === k).map((pt) => pt.html).join(" ").replace(/<[^>]+>/g, "");
         b.title = `${k + 1} / ${n}${tip ? ": " + tip : ""}`;
         b.setAttribute("aria-label", `Step ${k + 1} of ${n}`);
         b.addEventListener("click", (e) => {
           e.stopPropagation();          // not the click-to-advance of the stage
           if (k === ctl.g) ctl.replay();
-          else { if (ctl.g !== null && k < ctl.g) ctl.setAuto(false); ctl.setGroup(k); }   // looking back pauses autoplay
+          else ctl.jump(k);
         });
         prog.append(b);
       });
       bars = Array.from(prog.querySelectorAll(".seg"));
-      st.append(prog);
+      fig.append(prog);
     }
-    st.append(caption);
+    st.append(caption);                 // the old per-step captions: hidden, still read by the Twitter clips
     sec.append(st);
     const ctl = {
       sec, n, g: null, screen,
       setCaption(g) {
         const k = Math.max(0, g);
         capEls.forEach((e) => e.classList.toggle("on", e === capEls[k]));
+        partEls.forEach((e) => e.classList.toggle("on", g >= 0 && +e.dataset.g === k));
         bars.forEach((b, i) => { b.classList.toggle("done", i < g); b.classList.toggle("cur", i === g); });
       },
       onGroup() {}, suspend() {}, prime() {}, unload() {}, busy: () => false, finish() {}, replay() {},
       auto: false, timer: null,
-      setGroup(g) {                     // forward: play group g; back: show its end state
+      setGroup(g, replay) {             // forward (or replay): play group g; back: show its end state
         if (g === ctl.g) return;
         clearTimeout(ctl.timer);
         const prev = ctl.g;
         ctl.g = g;
         if (!ctl.captionOnShow) ctl.setCaption(g);   // animations: when the new step is on screen
-        ctl.onGroup(g, prev);
+        ctl.onGroup(g, prev, replay);
         ctl.showAuto();
       },
+      // a click on a step (its sentence or its progress segment) plays that step, also an earlier one;
+      // looking back pauses autoplay
+      jump(k) { if (ctl.g !== null && k < ctl.g) ctl.setAuto(false); ctl.setGroup(k, true); },
       // autoplay: when a group has finished, wait long enough to read its caption, then play the next
       done() {
         clearTimeout(ctl.timer);
@@ -108,7 +139,7 @@
         const c = caps[ctl.g] || {}, nextC = caps[ctl.g + 1] || {};
         const same = (c.big || "") === (nextC.big || "") && (c.small || "") === (nextC.small || "");
         const words = same ? 0 : `${c.big || ""} ${c.small || ""}`.replace(/<[^>]+>/g, "").split(/\s+/).filter(Boolean).length;
-        const hold = same ? 500 : Math.max(1100, Math.min(3200, 800 + 50 * words));
+        const hold = same ? 250 : Math.max(550, Math.min(1600, 400 + 25 * words));
         ctl.timer = setTimeout(() => { if (ctl.auto && pageOf(ctl) === cur && !ctl.busy()) ctl.setGroup(ctl.g + 1); }, hold);
       },
       setAuto(on) {
@@ -233,9 +264,9 @@
     ctl.preload = (gi) => { const c = gi < groups.length ? clipsOf(gi)[0] : null; if (c && !playing) load(vids[1 - front], c.src); };
     const lastClip = (gi) => { const c = clipsOf(gi); return c[c.length - 1]; };
 
-    ctl.onGroup = (g, prev) => {
+    ctl.onGroup = (g, prev, replay) => {
       if (g === null || g < 0) { still(firstClip(), false); return; }
-      if (prev === null || g > prev) play(g); else still(lastClip(g), true);
+      if (prev === null || g > prev || replay) play(g); else still(lastClip(g), true);
     };
     ctl.suspend = () => { if (playing && ctl.g !== null && ctl.g >= 0) still(lastClip(ctl.g), true); };
     ctl.busy = () => playing;
@@ -258,12 +289,16 @@
   }
 
   // ------------------------------------------------------------------ html visuals on a 1920x1080 canvas
-  function canvasBlock(sec, cls, html, caps) {
-    const ctl = stage(sec, caps);
+  function canvasBlock(sec, cls, html, caps, text) {
+    const ctl = stage(sec, caps, text);
     const cv = el("div", `canvas ${cls}`, html);
     ctl.screen.append(cv);
     let doneTimer = null;
-    ctl.onGroup = (g) => {
+    ctl.onGroup = (g, prev, replay) => {
+      if (replay && prev !== null && g < prev) {            // replay an earlier step: from the state before it
+        for (let i = 0; i < ctl.n; i++) cv.classList.toggle(`g${i}`, i < g);
+        void cv.offsetWidth;
+      }
       for (let i = 0; i < ctl.n; i++) cv.classList.toggle(`g${i}`, i <= g);
       clearTimeout(doneTimer);
       doneTimer = setTimeout(() => ctl.done(), 900);
@@ -294,7 +329,7 @@
     `<span>${lab}</span><span class="bar"><i class="${gold ? "gold" : ""}" style="--p:${Math.round(p * 100)}%"></i></span><span class="p">${p.toFixed(2)}</span>`).join("");
   const JEV = `
     <div class="jhead fx"><img src="assets/typesafe.png" alt="">
-      <div><b>Jev</b><span>TypeSafe AI’s “System 1” model: fast answers, no chain of thought</span></div></div>
+      <div><b>Jev</b><span>TypeSafe AI’s fast “System 1” model with no chain of thought</span></div></div>
     <div class="hops">
       <div class="hop h1 fx"><div class="tag">HOP 1</div><div class="qtext">In what year did Nelson Mandela become president of South Africa?</div>
         <div class="bars">${bars([["1994", 1, true], ["1990", 0], ["1998", 0]])}</div><div class="mark" style="color:var(--green)">✓</div></div>
@@ -350,14 +385,14 @@
       const s = el("section", "scrolly");
       const scenes = b.scenes || [b.scene];
       s.dataset.scene = scenes.join(",");
-      const ctl = stage(s, b.groups);
+      const ctl = stage(s, b.groups, b.text || TEXT[scenes.join("+")]);
       videoPlayer(ctl, scenes, b.groups);
       return s;
     },
     astra(b) {
       const s = el("section", "scrolly html");
       const c = { big: b.big, small: b.small };
-      canvasBlock(s, "astra", ASTRA, [c, c, { big: b.def }]);
+      canvasBlock(s, "astra", ASTRA, [c, c, { big: b.def }], b.text || TEXT.astra);
       return s;
     },
     jev(b) {
@@ -365,13 +400,13 @@
       const caps = [{ big: b.big, small: b.small }];
       if (b.chained) caps.push({ big: b.chained, small: b.chainedSmall });
       caps.push({ big: b.verdict });
-      canvasBlock(s, "jev", JEV, caps);
+      canvasBlock(s, "jev", JEV, caps, b.text || TEXT.jev);
       return s;
     },
     results(b) {
       const s = el("section", "scrolly html");
       const c = { big: b.big, small: b.small };
-      canvasBlock(s, "results", RESULTS, [c, c, { big: b.question }]);
+      canvasBlock(s, "results", RESULTS, [c, c, { big: b.question }], b.text || TEXT.results);
       return s;
     },
   };
@@ -464,12 +499,18 @@
 
   // ------------------------------------------------------------------ layout and scroll
   function fitCanvases() {
-    // each caption area is as tall as its longest caption (the screen above shrinks to fit)
+    // each animation takes the room its paragraph leaves (16:9, as large as fits)
+    // (beside the paragraph on wide screens, under it otherwise)
     document.querySelectorAll(".stage").forEach((st) => {
-      st.style.removeProperty("--cap-h");
-      const base = parseFloat(getComputedStyle(st).getPropertyValue("--cap-h")) || 0;
-      const tall = Math.max(0, ...Array.from(st.querySelectorAll(".cap")).map((c) => c.offsetHeight + 10));
-      if (tall > base) st.style.setProperty("--cap-h", `${Math.ceil(tall)}px`);
+      const fig = st.querySelector(".fig"), screen = st.querySelector(".screen"), prog = st.querySelector(".prog");
+      const cs = getComputedStyle(st), side = cs.flexDirection === "row";
+      const progH = prog ? prog.offsetHeight + (parseFloat(getComputedStyle(fig).rowGap) || 0) : 0;
+      const innerW = st.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      const innerH = st.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+      const paraH = side ? 0 : st.querySelector(".para").offsetHeight + (parseFloat(cs.rowGap) || 0);
+      const w = side ? fig.clientWidth : innerW;
+      const h = innerWidth <= 760 ? Infinity : innerH - paraH - progH;   // phones: full width, the page grows
+      screen.style.width = `${Math.floor(Math.max(240, Math.min(w, (h * 16) / 9)))}px`;
     });
     document.querySelectorAll(".canvas").forEach((cv) => cv.style.setProperty("--k", cv.parentElement.clientWidth / 1920));
   }
@@ -564,6 +605,7 @@
   }, { passive: true });
 
   fitCanvases();
+  if (document.fonts) document.fonts.ready.then(fitCanvases);   // the paragraphs' height depends on the font
   if (location.hash) {                  // a link to a chapter
     const a = document.getElementById(location.hash.slice(1));
     const i = a ? pages.findIndex((p) => p.offsetTop >= a.offsetTop - 1) : -1;

@@ -66,13 +66,8 @@
   { type: "chapter", id: "takeaways", num: "06", title: "Takeaways and open questions" },
 
   { type: "takeaways", items: [
-      { big: "Looping fixes the storage problem, but leaves a <em>representation bottleneck</em>.",
-        small: "After loop 1 the bridge is decodable (P = 1.000), yet its hidden state is far from the bridge’s " +
-               "embedding (cos ≈ 0.3). Mixing the decoded embedding back in, without any training, nearly closes " +
-               "the ID / OOD gap." },
-      { big: "DiscoLoop loops both the <em>discrete embedding</em> and the continuous hidden state.",
-        small: "It decodes each hidden state, re-encodes it as a soft token embedding and adds it back. That brings " +
-               "near-perfect ID and high OOD accuracy in far fewer epochs, and lower loss and better zero-shot scores in 440M-parameter pretraining." }
+      { big: "Looping fixes the storage problem, but leaves a <em>representation bottleneck</em>." },
+      { big: "DiscoLoop loops both the <em>discrete embedding</em> and the continuous hidden state." }
   ] },
 
   { type: "statement", big: "Two questions are still open." },

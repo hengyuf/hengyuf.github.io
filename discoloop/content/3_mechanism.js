@@ -28,10 +28,7 @@
                "One loop recalls every atomic fact, and loop 2 does the composing; what fails is generalization." }
   ] },
 
-  { type: "statement",
-    big: "So where does it break? Start with the bridge.",
-    small: "To answer “Alice son wife ?”, loop 1 should find Bob. Loop 2 then only has to look up Bob’s wife, " +
-           "a fact the same block recalls in one loop." },
+  { type: "statement", big: "So where does it break?" },
 
   { type: "scrolly", scene: "Part4B_Bridge", groups: [
       { steps: [0, 2],
@@ -49,9 +46,7 @@
   ] },
 
   { type: "statement",
-    big: "Bob is there before loop 2. Why does loop 2 still miss?",
-    small: "Loop 2 is never shown a decoded “Bob”. It takes the raw vector H<sup>(1)</sup><sub>2</sub> as its input, " +
-           "whatever that vector looks like." },
+    big: "Bob is there before loop 2. Why does loop 2 still miss?" },
 
   { type: "scrolly", scene: "Part4C_Mismatch", groups: [
       { steps: [0, 1],
@@ -87,7 +82,7 @@
         small: "Two-hop accuracy as α sweeps from 0 to 1. <span class=\"purple\">test_ood</span> is about 87% at α = 0.5 " +
                "and above 95% by α ≈ 0.6, a more than ten-fold gain. <span class=\"blue\">test_id</span> climbs to near 100% too." },
       { steps: [6, 6],
-        big: "The facts are fine; the <em>hand-off</em> between loops is not.",
+        big: "Thus, the <em>hand-off</em> between loops is the problem.",
         small: "Loop 1 hands loop 2 a vector that decodes to Bob but sits far from W[Bob]: a misaligned representation. " +
                "Mixing in the clean embedding at that one position recovers near-perfect accuracy." }
   ] }

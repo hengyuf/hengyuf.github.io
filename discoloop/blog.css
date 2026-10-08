@@ -22,6 +22,8 @@
   --mono: Menlo, "SF Mono", Consolas, monospace;
   --nav-h: 52px;
   --cap-h: 176px;                /* caption area under a pinned animation */
+  --hl: rgba(255, 180, 84, 0.2);   /* highlighter behind the sentence of the step on screen */
+  --ink: #c9d1dc; --ink-on: #ffffff; /* paragraph text, and the sentence of the step on screen */
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: var(--nav-h); }
@@ -83,7 +85,7 @@ body.light {
   --edge: #535c69; --mute: #6b7a93; --panel: #f3f9ff; --line: #e0e8f5;
   --chip-dis: #e7cfb4; --chip-co: #ced2db; --chip-lp: #b4e2ff; --track: #e5eefb; --bad: #efc187;
   --mark: rgba(150, 78, 192, 0.18); --navbg: rgba(255, 255, 255, 0.82); --hair: rgba(0, 0, 0, 0.08);
-  --fade: #5b6678; --done: #a9b4c6;
+  --fade: #5b6678; --done: #a9b4c6; --hl: rgba(255, 166, 61, 0.34); --ink: #141a22; --ink-on: #141a22;
 }
 body.light .screen video { filter: url(#luma-invert); mix-blend-mode: darken; }
 body.light .cot .model img { filter: invert(1); }
@@ -117,9 +119,24 @@ body.light .hop.bad .bar i.gold { background: var(--amber); }
 
 /* ---------------------------------------------------------------- pinned animations */
 .scrolly { position: relative; height: 100vh; }            /* every page is one screen */
-.stage { position: relative; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: calc(var(--nav-h) + 12px) 24px 18px; gap: 14px; }
+/* a page: its paragraph, then the animation (as large as the room left allows) and its progress bar */
+.stage { position: relative; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: calc(var(--nav-h) + 26px) 32px 22px; gap: 22px; }
 .stage { background: var(--bg); }            /* the backdrop the videos blend with */
-.screen { position: relative; width: min(100%, calc((100vh - var(--nav-h) - var(--cap-h) - 66px) * 16 / 9)); aspect-ratio: 16 / 9; flex: none; cursor: pointer; }
+.para { flex: none; width: min(100%, 900px); margin: 0; font-size: clamp(19px, 1.6vw, 28px); font-weight: 500; line-height: 1.5; letter-spacing: -0.006em; color: var(--ink); text-wrap: pretty; hyphens: manual; }
+.para .pt { transition: color 0.4s ease, background-size 0.6s ease; background-image: linear-gradient(var(--hl), var(--hl)); background-repeat: no-repeat; background-position: 0 80%; background-size: 0% 0.5em; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.para.steps .pt { cursor: pointer; }
+.para .pt.on { color: var(--ink-on); background-size: 100% 0.5em; }
+.para.steps .pt:not(.on):hover { text-decoration: underline dotted var(--mute); text-decoration-thickness: 2px; text-underline-offset: 0.22em; }
+.fig { flex: none; min-width: 0; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+.screen { position: relative; width: min(100%, 960px); aspect-ratio: 16 / 9; flex: none; cursor: pointer; }
+.nw { white-space: nowrap; }
+.caption { display: none; }                  /* the per-step captions now live in the paragraph */
+/* wide screens: the paragraph beside the animation, like a figure with its text */
+@media (min-width: 1100px) and (min-aspect-ratio: 13/10) {
+  .stage { flex-direction: row; align-items: center; gap: clamp(32px, 3.4vw, 64px); padding: calc(var(--nav-h) + 16px) clamp(32px, 3.6vw, 72px) 18px; }
+  .para { width: clamp(360px, 31vw, 560px); }
+  .fig { flex: 1 1 0; height: 100%; }
+}
 /* no frame: the animation sits in the page. The browser's video colours differ slightly from the CSS
    background (GPU colour conversion), so blend: nothing in the animations is darker than their
    background, so "lighten" turns the video background into exactly the page colour and keeps the rest */
@@ -225,7 +242,9 @@ body.light .hop.bad .bar i.gold { background: var(--amber); }
   .takeaways .small { font-size: 15px; margin-top: 12px; }
   #nav { gap: 14px; padding: 0 14px; }
   #nav .chapters { gap: 11px; }
-  .stage { padding-left: 14px; padding-right: 14px; }
+  .scrolly, .stage { height: auto; min-height: 100vh; }   /* a long paragraph makes the page taller, not the animation smaller */
+  .stage { padding: calc(var(--nav-h) + 14px) 14px 14px; gap: 14px; }
+  .para { width: 100%; font-size: 18px; line-height: 1.5; }
 }
 @media (max-height: 760px) and (min-width: 761px) {
   :root { --cap-h: 150px; }
