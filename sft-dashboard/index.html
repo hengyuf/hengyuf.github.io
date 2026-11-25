@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nemotron SWE-agent SFT dashboard — DeepSWE</title>
+<style>
+.viz-root {
+  color-scheme: light;
+  --surface-0: #f4f3f0; --surface-1: #fcfcfb; --border: #e2e1dc;
+  --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77766f;
+  --grid: #e6e5e0; --axis: #b9b8b0;
+  --series-1: #2a78d6; --series-2: #eb6834;
+  --good: #008300; --serious: #d24800; --critical: #c42b2b; --info: #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .viz-root {
+    color-scheme: dark;
+    --surface-0: #111110; --surface-1: #1a1a19; --border: #33332f;
+    --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #96958c;
+    --grid: #2b2b28; --axis: #55544e;
+    --series-1: #3987e5; --series-2: #d95926;
+    --good: #3fae3f; --serious: #f08a4b; --critical: #ef6b6b; --info: #3987e5;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.viz-root { background: var(--surface-0); color: var(--text-primary); min-height: 100vh; padding: 28px 20px 60px; }
+.wrap { max-width: 1100px; margin: 0 auto; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 16px; margin: 32px 0 10px; }
+.sub { color: var(--text-secondary); margin: 0 0 18px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.tile, .card, .panel { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.tile .k { color: var(--text-secondary); font-size: 12px; }
+.tile .v { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tile .d { color: var(--text-muted); font-size: 12px; }
+.legend { display: flex; gap: 18px; color: var(--text-secondary); font-size: 12px; margin: 0 0 6px; }
+.sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 6px; }
+.dot { border-radius: 50%; width: 9px; height: 9px; }
+svg text { fill: var(--text-secondary); font-size: 12px; }
+svg .lbl { fill: var(--text-primary); }
+svg .val { fill: var(--text-primary); font-variant-numeric: tabular-nums; }
+#tip { position: fixed; pointer-events: none; background: var(--surface-1); color: var(--text-primary); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.15); display: none; max-width: 300px; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { color: var(--text-secondary); font-weight: 500; font-size: 12px; }
+td.num, th.num { text-align: right; }
+.scroll { overflow-x: auto; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; }
+.card h3 { margin: 0 0 6px; font-size: 15px; }
+.card dl { margin: 0; } .card dt { color: var(--text-secondary); font-size: 12px; margin-top: 8px; } .card dd { margin: 2px 0 0; }
+.badge { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; margin-left: 6px; vertical-align: 2px; }
+.s-done { color: var(--good); } .s-failed { color: var(--critical); } .s-running { color: var(--info); } .s-reference { color: var(--text-secondary); }
+.st-done::before { content: "✓ "; color: var(--good); } .st-failed_gate::before { content: "✕ "; color: var(--critical); }
+.st-run::before { content: "◔ "; color: var(--info); }
+.muted { color: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="viz-root"><div class="wrap">
+  <h1>Nemotron SWE-agent SFT dashboard</h1>
+  <p class="sub" id="sub"></p>
+  <div class="tiles" id="tiles"></div>
+
+  <h2>DeepSWE avg@5 by model</h2>
+  <div class="panel">
+    <div class="legend"><span><span class="sw" style="background:var(--series-1)"></span>avg@5 (mean resolved over 5 passes)</span>
+      <span><span class="sw dot" style="background:var(--series-2)"></span>single pass (resolved / 113)</span>
+      <span class="muted">Models with only pass 1 so far show just the dot.</span></div>
+    <div id="chart"></div>
+  </div>
+
+  <h2>All models</h2>
+  <div class="panel scroll"><table id="tbl"></table></div>
+  <p class="muted" style="font-size:12px">Bad summary means a compaction summary with fewer than 200 visible characters, or one that does not mention commit. Max-token calls are LLM calls that hit the output limit, usually reasoning loops. Empty patch = no committed diff (3h timeout + agent stopped without committing). Compaction metrics are from pass 1.</p>
+
+  <h2>Recipes</h2>
+  <div class="cards" id="cards"></div>
+</div></div>
+<div id="tip"></div>
+<script>
+const pct = x => x == null ? '–' : (100 * x).toFixed(1) + '%';
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+fetch('data.json', {cache: 'no-store'}).then(r => r.json()).then(D => {
+  document.getElementById('sub').textContent = `${D.benchmark}. Updated ${D.updated}.`;
+  const M = D.models, full = M.filter(m => m.avg5 != null);
+  const best = full.reduce((a, b) => b.avg5 > a.avg5 ? b : a);
+  const bestSft = full.filter(m => m.recipe !== 'initial').reduce((a, b) => b.avg5 > a.avg5 ? b : a);
+  const running = M.filter(m => !['done', 'failed_gate'].includes(m.status)).length;
+  document.getElementById('tiles').innerHTML = [
+    ['Best avg@5 (any)', pct(best.avg5), best.name],
+    ['Best avg@5 (SFT)', pct(bestSft.avg5), bestSft.name],
+    ['Models evaluated (5 passes)', full.length, `${M.length} total`],
+    ['In progress', running, 'training or evaluating']].map(([k, v, d]) =>
+    `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${esc(d)}</div></div>`).join('');
+
+  // chart: horizontal bars, one row per model with any result
+  const rows = M.filter(m => m.avg5 != null || (m.per_pass && m.per_pass.length));
+  const W = Math.min(1060, document.getElementById('chart').clientWidth || 1000), L = 170, Rm = 60, rowH = 26, T = 8;
+  const H = T + rows.length * rowH + 28, maxX = 0.45, x = v => L + (W - L - Rm) * v / maxX;
+  let s = `<svg width="${W}" height="${H}" role="img" aria-label="avg@5 per model">`;
+  for (let g = 0; g <= maxX + 1e-9; g += 0.05) s += `<line x1="${x(g)}" x2="${x(g)}" y1="${T}" y2="${H - 22}" stroke="var(--grid)"/><text x="${x(g)}" y="${H - 6}" text-anchor="middle">${Math.round(g * 100)}%</text>`;
+  let prevRecipe = null;
+  rows.forEach((m, i) => {
+    const y = T + i * rowH, cy = y + rowH / 2;
+    if (prevRecipe && m.recipe !== prevRecipe) s += `<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="var(--border)"/>`;
+    prevRecipe = m.recipe;
+    s += `<g class="row" data-i="${M.indexOf(m)}"><rect x="0" y="${y}" width="${W}" height="${rowH}" fill="transparent"/>`;
+    s += `<text class="lbl" x="${L - 10}" y="${cy + 4}" text-anchor="end">${esc(m.name)}</text>`;
+    if (m.avg5 != null) {
+      const w = x(m.avg5) - L, r = Math.min(4, w);
+      s += `<path d="M${L},${cy - 7} h${w - r} a${r},${r} 0 0 1 ${r},${r} v${14 - 2 * r} a${r},${r} 0 0 1 -${r},${r} h-${w - r} z" fill="var(--series-1)"/>`;
+      s += `<text class="val" x="${x(m.avg5) + 6}" y="${cy + 4}">${pct(m.avg5)}</text>`;
+    }
+    (m.per_pass || []).forEach(v => s += `<circle cx="${x(v / 113)}" cy="${cy}" r="4.5" fill="var(--series-2)" stroke="var(--surface-1)" stroke-width="2"/>`);
+    if (m.avg5 == null) s += `<text class="val" x="${x(Math.max(...m.per_pass) / 113) + 10}" y="${cy + 4}">pass 1: ${m.per_pass[0]}/113</text>`;
+    s += `</g>`;
+  });
+  s += `<line x1="${L}" x2="${L}" y1="${T}" y2="${H - 22}" stroke="var(--axis)"/></svg>`;
+  const chart = document.getElementById('chart'); chart.innerHTML = s;
+  const tip = document.getElementById('tip');
+  chart.querySelectorAll('.row').forEach(g => {
+    g.addEventListener('mousemove', e => {
+      const m = M[+g.dataset.i]; const rc = D.recipes[m.recipe];
+      tip.innerHTML = `<b>${esc(m.name)}</b><br>${esc(rc.title)}<br>avg@5 ${pct(m.avg5)} · pass@5 ${pct(m.pass5)}<br>per pass: ${(m.per_pass || []).join(', ') || '–'}` +
+        (m.m1 ? `<br>bad summary ${pct(m.m1.bad_summary)} · max-token calls ${m.m1.length_calls}` : '');
+      tip.style.display = 'block'; tip.style.left = Math.min(e.clientX + 14, innerWidth - 320) + 'px'; tip.style.top = (e.clientY + 14) + 'px';
+      g.querySelector('rect').setAttribute('fill', 'var(--grid)');
+    });
+    g.addEventListener('mouseleave', () => { tip.style.display = 'none'; g.querySelector('rect').setAttribute('fill', 'transparent'); });
+  });
+
+  // table
+  const stCls = st => st === 'done' ? 'st-done' : st === 'failed_gate' ? 'st-failed_gate' : 'st-run';
+  const stTxt = st => st === 'failed_gate' ? 'stopped after pass 1' : st;
+  document.getElementById('tbl').innerHTML = `<tr><th>model</th><th>recipe</th><th>init</th><th>data</th><th>LR</th><th class="num">epochs</th>
+    <th class="num">per-pass resolved</th><th class="num">avg@5</th><th class="num">pass@5</th><th class="num">bad summary</th><th class="num">max-token calls</th><th class="num">empty patch (timeout+stop)</th><th>status</th></tr>` +
+    M.map(m => `<tr><td>${esc(m.name)}</td><td>${esc(D.recipes[m.recipe].title)}</td><td>${esc(m.init)}</td><td>${esc(m.data)}</td><td>${esc(m.lr)}</td>
+    <td class="num">${m.epochs || '–'}</td><td class="num">${(m.per_pass || []).join(' / ') || '–'}</td><td class="num"><b>${pct(m.avg5)}</b></td><td class="num">${pct(m.pass5)}</td>
+    <td class="num">${m.m1 ? pct(m.m1.bad_summary) : '–'}</td><td class="num">${m.m1 ? m.m1.length_calls : '–'}</td>
+    <td class="num">${m.m1 ? `${m.m1.empty} (${m.m1.timeout}+${m.m1.selfstop})` : '–'}</td><td class="${stCls(m.status)}">${esc(stTxt(m.status))}</td></tr>`).join('');
+
+  // recipe cards
+  const sc = {done: 's-done', failed: 's-failed', running: 's-running', reference: 's-reference'};
+  document.getElementById('cards').innerHTML = Object.entries(D.recipes).map(([k, r]) => `<div class="card"><h3>${esc(r.title)}<span class="badge ${sc[r.status] || 's-running'}">${esc(r.status)}</span></h3><dl>
+    <dt>Data</dt><dd>${esc(r.data)}</dd><dt>Training</dt><dd>${esc(r.training)}</dd><dt>Targets</dt><dd>${esc(r.targets)}</dd><dt>Result</dt><dd>${esc(r.finding)}</dd></dl></div>`).join('');
+});
+</script>
+</body>
+</html>
