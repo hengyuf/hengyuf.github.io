@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-25 07:44 UTC",
+ "updated": "2026-11-25 11:06 UTC",
  "benchmark": "DeepSWE v1.1 (113 tasks), OpenCode agent, 3h sandbox, 5 passes (seeds 0-4)",
  "recipes": {
   "initial": {
