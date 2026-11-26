@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-26 17:19 UTC",
+ "updated": "2026-11-26 19:35 UTC",
  "benchmark": "DeepSWE v1.1 (113 tasks), OpenCode agent, 3h sandbox, 5 passes (seeds 0-4)",
  "recipes": {
   "initial": {
@@ -379,11 +379,23 @@
    "data": "GLM + ours summ",
    "lr": "2e-5\u21921e-6",
    "epochs": 10,
-   "per_pass": null,
+   "per_pass": [
+    29
+   ],
    "avg5": null,
    "pass5": null,
-   "m1": null,
-   "status": "eval pass 1",
+   "m1": {
+    "resolved": 29,
+    "n_summ": 236,
+    "bad_summary": 0.127,
+    "vis200": 30,
+    "no_commit": 14,
+    "length_calls": 27,
+    "empty": 33,
+    "timeout": 26,
+    "selfstop": 7
+   },
+   "status": "failed_gate",
    "note": ""
   },
   {
