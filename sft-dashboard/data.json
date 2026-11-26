@@ -323,11 +323,23 @@
    "data": "GLM + ours summ",
    "lr": "1e-5\u21921e-6",
    "epochs": 10,
-   "per_pass": null,
+   "per_pass": [
+    34
+   ],
    "avg5": null,
    "pass5": null,
-   "m1": null,
-   "status": "eval pass 1",
+   "m1": {
+    "resolved": 34,
+    "n_summ": 155,
+    "bad_summary": 0.032,
+    "vis200": 5,
+    "no_commit": 0,
+    "length_calls": 14,
+    "empty": 9,
+    "timeout": 6,
+    "selfstop": 3
+   },
+   "status": "eval passes 2-5",
    "note": ""
   },
   {
